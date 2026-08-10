@@ -8,6 +8,7 @@
 Self-hosted IP lookup with high accuracy for China IPs (pconline primary, ipapi.co fallback). EN / 中文 toggle, ~30KB single file, standard library only.
 
 ## Quick Start
+<img width="599" height="387" alt="image" src="https://github.com/user-attachments/assets/9e26db59-eb30-4852-933c-2ed2f3645319" />
 
 ```bash
 python3 app.py              # http://localhost:8082
