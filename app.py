@@ -92,11 +92,15 @@ def lookup(ip):
         return {"status": "fail", "message": "Invalid IP format"}
     if not ip:
         return {"status": "fail", "message": "No IP"}
+    # pconline 仅对国内 IP 精确；国外 IP 数据不完整（无城市/ISP/坐标），降级 ipapi.co
     r = lookup_pconline(ip)
-    if r and r.get("country"):
+    if r and r.get("countryCode") == "CN" and (r.get("city") or r.get("region")):
         return r
     r = lookup_ipapi(ip)
     if r:
+        return r
+    # ipapi 也失败时，兜底返回 pconline 的至少有国家信息的结果
+    if r and r.get("country"):
         return r
     return {"status": "fail", "message": "All sources unreachable"}
 
