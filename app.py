@@ -246,6 +246,9 @@ body{font-family:"Space Grotesk","IBM Plex Sans","Avenir Next",-apple-system,Bli
 .field .v a:hover{text-decoration:underline}
 .src-tag{text-align:center;font-size:11px;color:#7f6a56;margin-top:16px}
 .src-tag code{background:rgba(14,140,106,.08);color:#0e8c6a;padding:1px 7px;border-radius:5px}
+.brand-foot{text-align:center;margin-top:6px;font-size:12px}
+.brand-foot a{color:#7f6a56;text-decoration:none;transition:color .2s}
+.brand-foot a:hover{color:#0e8c6a}
 @media(max-width:480px){.card{padding:26px 18px}.flag{font-size:40px}.ip-val{font-size:24px}.search{flex-direction:column}.btn{width:100%}}
 </style></head><body>
 <div class="bg-gradient"></div><div class="bg-shape shape-a"></div><div class="bg-shape shape-b"></div><div class="bg-grid"></div><img class="bg-image" src="/bg" alt="">
@@ -273,6 +276,8 @@ body{font-family:"Space Grotesk","IBM Plex Sans","Avenir Next",-apple-system,Bli
   </div>
 
   <div class="card result-area" id="result"><div class="loading"><div class="spinner"></div><br><span data-i18n="loading">Loading…</span></div></div>
+
+  <footer class="brand-foot"><a href="https://www.haoaiganfan.top" target="_blank" rel="noopener">照旧出品</a></footer>
 </div>
 
 <script>
