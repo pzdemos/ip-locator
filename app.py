@@ -200,7 +200,7 @@ body{font-family:"Space Grotesk","IBM Plex Sans","Avenir Next",-apple-system,Bli
 .bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(219,205,191,.3) 1px,transparent 1px),linear-gradient(90deg,rgba(219,205,191,.3) 1px,transparent 1px);background-size:50px 50px;pointer-events:none;z-index:0}
 .wrap{position:relative;z-index:1;max-width:560px;margin:0 auto;animation:fadeInUp .6s ease-out}
 @keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
-.lang-switch{position:absolute;top:-4px;right:0;display:flex;gap:4px;z-index:2}
+.lang-switch{display:flex;gap:4px;justify-content:flex-end;margin:-12px -12px 0 0}
 .lang-btn{padding:5px 11px;font-size:12px;font-weight:600;border:1px solid #dbcdbf;background:#fffdf8;color:#7f6a56;border-radius:8px;cursor:pointer;transition:all .2s;font-family:inherit}
 .lang-btn:hover{border-color:#0e8c6a;color:#0e8c6a}
 .lang-btn.active{background:#0e8c6a;color:#fff;border-color:#0e8c6a}
@@ -251,11 +251,11 @@ body{font-family:"Space Grotesk","IBM Plex Sans","Avenir Next",-apple-system,Bli
 <div class="bg-gradient"></div><div class="bg-shape shape-a"></div><div class="bg-shape shape-b"></div><div class="bg-grid"></div><img class="bg-image" src="/bg" alt="">
 
 <div class="wrap">
-  <div class="lang-switch">
-    <button class="lang-btn" data-lang="en">EN</button>
-    <button class="lang-btn" data-lang="zh">中文</button>
-  </div>
   <div class="card">
+    <div class="lang-switch">
+      <button class="lang-btn" data-lang="en">EN</button>
+      <button class="lang-btn" data-lang="zh">中文</button>
+    </div>
     <div class="logo">
       <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93C7.05 19.44 4 16.08 4 12c0-.61.08-1.21.21-1.78L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41C17.93 5.78 20 8.65 20 12c0 2.08-.81 3.98-2.1 5.39z"/></svg></div>
       <h1 data-i18n="title">IP Lookup</h1>
