@@ -192,7 +192,7 @@ INDEX_HTML = r"""<!doctype html>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:16px;-webkit-font-smoothing:antialiased}
 body{font-family:"Space Grotesk","IBM Plex Sans","Avenir Next",-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;min-height:100vh;background:#f4efe8;color:#2d2218;position:relative;overflow-x:hidden;padding:24px 20px}
-.bg-image{position:fixed;inset:0;background-image:url(/bg);background-size:cover;background-position:center 30%;opacity:.13;z-index:0;pointer-events:none}
+.bg-image{position:fixed;inset:0;background-image:url(/bg);background-size:cover;background-position:center 30%;opacity:.20;z-index:0;pointer-events:none}
 .bg-gradient{position:fixed;inset:0;background:radial-gradient(circle at 12% 8%,#fff8ef 0%,#f4efe8 55%);pointer-events:none;z-index:0}
 .bg-shape{position:fixed;z-index:0;border-radius:999px;filter:blur(26px);opacity:.5}
 .shape-a{width:280px;height:280px;right:8%;top:7%;background:#80d8be}
@@ -248,7 +248,7 @@ body{font-family:"Space Grotesk","IBM Plex Sans","Avenir Next",-apple-system,Bli
 .src-tag code{background:rgba(14,140,106,.08);color:#0e8c6a;padding:1px 7px;border-radius:5px}
 @media(max-width:480px){.card{padding:26px 18px}.flag{font-size:40px}.ip-val{font-size:24px}.search{flex-direction:column}.btn{width:100%}}
 </style></head><body>
-<div class="bg-image"></div><div class="bg-gradient"></div><div class="bg-shape shape-a"></div><div class="bg-shape shape-b"></div><div class="bg-grid"></div>
+<div class="bg-gradient"></div><div class="bg-shape shape-a"></div><div class="bg-shape shape-b"></div><div class="bg-grid"></div><div class="bg-image"></div>
 
 <div class="wrap">
   <div class="lang-switch">
@@ -341,7 +341,7 @@ HISTORY_HTML = r"""<!doctype html>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:16px;-webkit-font-smoothing:antialiased}
 body{font-family:"Space Grotesk","IBM Plex Sans","Avenir Next",-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;min-height:100vh;background:#f4efe8;color:#2d2218;padding:24px 20px;position:relative;overflow-x:hidden}
-.bg-image{position:fixed;inset:0;background-image:url(/bg);background-size:cover;background-position:center 30%;opacity:.10;z-index:0;pointer-events:none}
+.bg-image{position:fixed;inset:0;background-image:url(/bg);background-size:cover;background-position:center 30%;opacity:.16;z-index:0;pointer-events:none}
 .bg-gradient{position:fixed;inset:0;background:radial-gradient(circle at 12% 8%,#fff8ef 0%,#f4efe8 55%);pointer-events:none;z-index:0}
 .bg-shape{position:fixed;z-index:0;border-radius:999px;filter:blur(26px);opacity:.45}
 .shape-a{width:260px;height:260px;right:6%;top:5%;background:#80d8be}
@@ -383,7 +383,7 @@ tr:hover td{background:rgba(14,140,106,.04)}
 footer{text-align:center;color:#7f6a56;font-size:11px;margin-top:24px}
 @media(max-width:640px){.hide-sm{display:none}td,th{padding:8px 10px}}
 </style></head><body>
-<div class="bg-image"></div><div class="bg-gradient"></div><div class="bg-shape shape-a"></div><div class="bg-shape shape-b"></div><div class="bg-grid"></div>
+<div class="bg-gradient"></div><div class="bg-shape shape-a"></div><div class="bg-shape shape-b"></div><div class="bg-grid"></div><div class="bg-image"></div>
 
 <div class="wrap">
   <header>
