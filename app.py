@@ -9,6 +9,7 @@ import os
 import json
 import time
 import socket
+import threading
 import urllib.request
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -16,6 +17,57 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 PORT = int(os.environ.get("PORT", 8082))
 LOG_DIR = os.environ.get("LOG_DIR", "/root/common/ip-lookup")
 LOG_FILE = os.path.join(LOG_DIR, "queries.jsonl")
+
+# 限流：同 visitor+IP 60s 内复用缓存；同 visitor 60s 内最多 15 次
+CACHE_TTL = 60
+RATE_LIMIT = 15
+RATE_WINDOW = 60
+_cache = {}      # key: (visitor, target_ip) -> (timestamp, result)
+_rate = {}       # visitor -> [timestamps...]
+_lock = threading.Lock()
+
+
+def check_rate(visitor):
+    """返回 True 表示放行，False 表示超限。"""
+    now = time.time()
+    with _lock:
+        ts = _rate.get(visitor, [])
+        ts = [x for x in ts if now - x < RATE_WINDOW]
+        if len(ts) >= RATE_LIMIT:
+            _rate[visitor] = ts
+            return False
+        ts.append(now)
+        _rate[visitor] = ts
+        return True
+
+
+def cache_get(visitor, target):
+    with _lock:
+        v = _cache.get((visitor, target))
+        if v and time.time() - v[0] < CACHE_TTL:
+            return v[1]
+    return None
+
+
+def notify_bark(msg):
+    """缓存超限时通过 Bark 推送告警。失败静默。"""
+    try:
+        url = "https://api.day.app/rfTC6UmEwpBnhFt5fzBHMG/" + urllib.parse.quote("IP-Lookup 缓存超限: " + msg)
+        urllib.request.urlopen(url, timeout=5).read()
+    except Exception:
+        pass
+
+
+def cache_set(visitor, target, result):
+    with _lock:
+        if len(_cache) > 2000:  # 防止内存膨胀，粗略清理
+            cutoff = time.time() - CACHE_TTL
+            for k in list(_cache.keys()):
+                if _cache[k][0] < cutoff:
+                    del _cache[k]
+            if len(_cache) > 2000:  # 清理后仍超限 → 告警
+                notify_bark("清理后仍剩 %d 条" % len(_cache))
+        _cache[(visitor, target)] = (time.time(), result)
 
 CARRIERS = ["移动", "联通", "电信", "铁通", "广电", "长城", "教育网", "鹏博士"]
 
@@ -405,8 +457,17 @@ class Handler(BaseHTTPRequestHandler):
             visitor = client_ip(self)
             if not ip:
                 ip = visitor
+            if not check_rate(visitor):
+                self._send(429, "application/json; charset=utf-8",
+                           json.dumps({"status": "fail", "message": "Too many requests, slow down"}).encode())
+                return
+            cached = cache_get(visitor, ip)
+            if cached:
+                self._send(200, "application/json; charset=utf-8", json.dumps(cached).encode())
+                return
             result = lookup(ip)
             log_query(visitor, ip, result)
+            cache_set(visitor, ip, result)
             self._send(200, "application/json; charset=utf-8", json.dumps(result).encode())
         elif parsed.path == "/api/history":
             qs = urllib.parse.parse_qs(parsed.query)
