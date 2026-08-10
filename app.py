@@ -192,7 +192,7 @@ INDEX_HTML = r"""<!doctype html>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:16px;-webkit-font-smoothing:antialiased}
 body{font-family:"Space Grotesk","IBM Plex Sans","Avenir Next",-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;min-height:100vh;background:#f4efe8;color:#2d2218;position:relative;overflow-x:hidden;padding:24px 20px}
-.bg-image{position:fixed;left:0;right:0;bottom:0;width:100%;height:auto;opacity:.28;z-index:0;pointer-events:none;display:block}
+.bg-image{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;object-position:center bottom;opacity:.28;z-index:0;pointer-events:none;display:block}
 .bg-gradient{position:fixed;inset:0;background:radial-gradient(circle at 12% 8%,#fff8ef 0%,#f4efe8 55%);pointer-events:none;z-index:0}
 .bg-shape{position:fixed;z-index:0;border-radius:999px;filter:blur(26px);opacity:.5}
 .shape-a{width:280px;height:280px;right:8%;top:7%;background:#80d8be}
@@ -341,7 +341,7 @@ HISTORY_HTML = r"""<!doctype html>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:16px;-webkit-font-smoothing:antialiased}
 body{font-family:"Space Grotesk","IBM Plex Sans","Avenir Next",-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;min-height:100vh;background:#f4efe8;color:#2d2218;padding:24px 20px;position:relative;overflow-x:hidden}
-.bg-image{position:fixed;left:0;right:0;bottom:0;width:100%;height:auto;opacity:.22;z-index:0;pointer-events:none;display:block}
+.bg-image{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;object-position:center bottom;opacity:.22;z-index:0;pointer-events:none;display:block}
 .bg-gradient{position:fixed;inset:0;background:radial-gradient(circle at 12% 8%,#fff8ef 0%,#f4efe8 55%);pointer-events:none;z-index:0}
 .bg-shape{position:fixed;z-index:0;border-radius:999px;filter:blur(26px);opacity:.45}
 .shape-a{width:260px;height:260px;right:6%;top:5%;background:#80d8be}
