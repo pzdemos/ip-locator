@@ -200,7 +200,7 @@ body{font-family:"Space Grotesk","IBM Plex Sans","Avenir Next",-apple-system,Bli
 .bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(219,205,191,.3) 1px,transparent 1px),linear-gradient(90deg,rgba(219,205,191,.3) 1px,transparent 1px);background-size:50px 50px;pointer-events:none;z-index:0}
 .wrap{position:relative;z-index:1;max-width:560px;margin:0 auto;animation:fadeInUp .6s ease-out}
 @keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
-.lang-switch{display:flex;gap:4px;justify-content:flex-end;margin-bottom:12px}
+.lang-switch{position:absolute;top:-4px;right:0;display:flex;gap:4px;z-index:2}
 .lang-btn{padding:5px 11px;font-size:12px;font-weight:600;border:1px solid #dbcdbf;background:#fffdf8;color:#7f6a56;border-radius:8px;cursor:pointer;transition:all .2s;font-family:inherit}
 .lang-btn:hover{border-color:#0e8c6a;color:#0e8c6a}
 .lang-btn.active{background:#0e8c6a;color:#fff;border-color:#0e8c6a}
