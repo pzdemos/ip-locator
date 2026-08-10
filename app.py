@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""IP 查询服务（奶油绿设计 · pconline 国内主源 + ipapi.co 国际兜底）。
-  /             -> 静态 HTML（SPA）
-  /api/lookup   -> JSON，参数 ?ip= 可选（省略时用访问者 IP）
-  /api/history  -> JSON，最近 N 条查询记录
+"""IP 查询服务（奶油绿设计 · pconline 国内主源 + ipapi.co 国际兜底 · 中英双语）。
+  /             -> 静态 HTML（SPA，默认英文）
+  /api/lookup   -> JSON，参数 ?ip= 可选
+  /api/history  -> JSON
   /history      -> 历史记录页面
 """
 import os
@@ -20,7 +20,6 @@ LOG_FILE = os.path.join(LOG_DIR, "queries.jsonl")
 CARRIERS = ["移动", "联通", "电信", "铁通", "广电", "长城", "教育网", "鹏博士"]
 
 
-# ---------- 工具 ----------
 def is_valid_ip(s):
     try:
         socket.inet_aton(s)
@@ -51,9 +50,7 @@ def _get(url, timeout=6, ua="ip-lookup/1.0"):
         return r.read()
 
 
-# ---------- 数据源 ----------
 def lookup_pconline(ip):
-    """太平洋电脑网，国内精度高，GBK 编码。返回统一结构或 None。"""
     try:
         raw = _get("https://whois.pconline.com.cn/ipJson.jsp?ip=" + ip + "&json=true")
         d = json.loads(raw.decode("gbk", errors="replace").strip())
@@ -62,81 +59,56 @@ def lookup_pconline(ip):
         addr = d.get("addr", "").strip()
         pro = d.get("pro", "").strip()
         city = d.get("city", "").strip()
-        is_cn = bool(pro) or (addr and pro == "" and "省" not in addr and "市" not in addr and len(addr) < 6 is False)
-        # 国外 IP：pconline 返回 addr 如 " 美国"，pro/city 空
         if not pro and not city:
-            return {
-                "status": "success", "query": ip,
-                "country": addr.replace(" ", "") or "未知",
-                "countryCode": "", "region": "", "city": "", "addr": addr,
-                "isp": "", "org": "", "as": "",
-                "lat": None, "lon": None, "timezone": None,
-                "mobile": False, "proxy": False, "hosting": False,
-                "source": "pconline",
-            }
-        return {
-            "status": "success", "query": d.get("ip", ip),
-            "country": "中国", "countryCode": "CN",
-            "region": pro, "city": city, "addr": addr,
-            "isp": extract_isp(addr), "org": "", "as": "",
-            "lat": None, "lon": None, "timezone": "Asia/Shanghai",
-            "mobile": False, "proxy": False, "hosting": False,
-            "source": "pconline",
-        }
+            return {"status": "success", "query": ip, "country": addr.replace(" ", "") or "Unknown",
+                    "countryCode": "", "region": "", "city": "", "addr": addr, "isp": "", "org": "",
+                    "as": "", "lat": None, "lon": None, "timezone": None, "mobile": False, "proxy": False,
+                    "hosting": False, "source": "pconline"}
+        return {"status": "success", "query": d.get("ip", ip), "country": "中国", "countryCode": "CN",
+                "region": pro, "city": city, "addr": addr, "isp": extract_isp(addr), "org": "", "as": "",
+                "lat": None, "lon": None, "timezone": "Asia/Shanghai", "mobile": False, "proxy": False,
+                "hosting": False, "source": "pconline"}
     except Exception:
         return None
 
 
 def lookup_ipapi(ip):
-    """ipapi.co 国际兜底，数据完整（含坐标/ASN）。"""
     try:
         d = json.loads(_get("https://ipapi.co/" + ip + "/json/", timeout=8).decode())
         if d.get("error"):
             return None
-        return {
-            "status": "success", "query": d.get("ip", ip),
-            "country": d.get("country_name"), "countryCode": d.get("country_code"),
-            "region": d.get("region"), "city": d.get("city"), "addr": "",
-            "isp": d.get("org"), "org": d.get("org"), "as": d.get("asn"),
-            "lat": d.get("latitude"), "lon": d.get("longitude"),
-            "timezone": d.get("timezone"),
-            "mobile": False, "proxy": False, "hosting": False,
-            "source": "ipapi.co",
-        }
+        return {"status": "success", "query": d.get("ip", ip), "country": d.get("country_name"),
+                "countryCode": d.get("country_code"), "region": d.get("region"), "city": d.get("city"),
+                "addr": "", "isp": d.get("org"), "org": d.get("org"), "as": d.get("asn"),
+                "lat": d.get("latitude"), "lon": d.get("longitude"), "timezone": d.get("timezone"),
+                "mobile": False, "proxy": False, "hosting": False, "source": "ipapi.co"}
     except Exception:
         return None
 
 
 def lookup(ip):
-    """主调度：先 pconline（国内准），失败再 ipapi.co（国际）。"""
     ip = (ip or "").strip()
     if ip and not is_valid_ip(ip):
-        return {"status": "fail", "message": "IP 格式错误"}
+        return {"status": "fail", "message": "Invalid IP format"}
     if not ip:
-        return {"status": "fail", "message": "无 IP"}
+        return {"status": "fail", "message": "No IP"}
     r = lookup_pconline(ip)
     if r and r.get("country"):
         return r
     r = lookup_ipapi(ip)
     if r:
         return r
-    return {"status": "fail", "message": "所有数据源不可达"}
+    return {"status": "fail", "message": "All sources unreachable"}
 
 
-# ---------- 记录 ----------
 def log_query(visitor, target, result):
     try:
-        rec = {
-            "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "visitor": visitor, "target": target,
-            "status": result.get("status"),
-            "country": result.get("country"), "countryCode": result.get("countryCode"),
-            "region": result.get("region"), "city": result.get("city"),
-            "addr": result.get("addr"), "isp": result.get("isp"),
-            "as": result.get("as"), "source": result.get("source"),
-            "mobile": result.get("mobile"), "proxy": result.get("proxy"),
-            "hosting": result.get("hosting"),
-        }
+        rec = {"ts": time.strftime("%Y-%m-%d %H:%M:%S"), "visitor": visitor, "target": target,
+               "status": result.get("status"), "country": result.get("country"),
+               "countryCode": result.get("countryCode"), "region": result.get("region"),
+               "city": result.get("city"), "addr": result.get("addr"), "isp": result.get("isp"),
+               "as": result.get("as"), "source": result.get("source"), "mobile": result.get("mobile"),
+               "proxy": result.get("proxy"), "hosting": result.get("hosting")}
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception:
@@ -154,12 +126,11 @@ def read_history(limit=200):
         return []
 
 
-# ---------- HTML（奶油绿设计，r""" 零插值） ----------
 INDEX_HTML = r"""<!doctype html>
-<html lang="zh-CN"><head>
+<html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#f4efe8">
-<title>IP 查询</title>
+<title>IP Lookup</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:16px;-webkit-font-smoothing:antialiased}
@@ -171,6 +142,10 @@ body{font-family:"Space Grotesk","IBM Plex Sans","Avenir Next",-apple-system,Bli
 .bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(219,205,191,.3) 1px,transparent 1px),linear-gradient(90deg,rgba(219,205,191,.3) 1px,transparent 1px);background-size:50px 50px;pointer-events:none;z-index:0}
 .wrap{position:relative;z-index:1;max-width:560px;margin:0 auto;animation:fadeInUp .6s ease-out}
 @keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+.lang-switch{position:absolute;top:0;right:0;display:flex;gap:4px;z-index:3}
+.lang-btn{padding:5px 11px;font-size:12px;font-weight:600;border:1px solid #dbcdbf;background:#fffdf8;color:#7f6a56;border-radius:8px;cursor:pointer;transition:all .2s;font-family:inherit}
+.lang-btn:hover{border-color:#0e8c6a;color:#0e8c6a}
+.lang-btn.active{background:#0e8c6a;color:#fff;border-color:#0e8c6a}
 .card{background:linear-gradient(140deg,#fffdf8 0%,#f8f4ed 100%);backdrop-filter:blur(20px);border-radius:16px;padding:36px;box-shadow:0 18px 38px rgba(40,24,9,.12);border:1px solid #dbcdbf;margin-bottom:18px}
 .logo{text-align:center;margin-bottom:28px}
 .logo-icon{width:52px;height:52px;margin:0 auto 14px;background:linear-gradient(140deg,#0e8c6a 0%,#066a52 100%);border-radius:13px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(14,140,106,.3)}
@@ -187,8 +162,6 @@ body{font-family:"Space Grotesk","IBM Plex Sans","Avenir Next",-apple-system,Bli
 .btn{padding:14px 22px;font-size:15px;font-weight:600;color:#fff;background:linear-gradient(140deg,#0e8c6a 0%,#066a52 100%);border:none;border-radius:12px;cursor:pointer;transition:all .2s;box-shadow:0 4px 12px rgba(14,140,106,.3);font-family:inherit;white-space:nowrap}
 .btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(14,140,106,.4)}
 .btn:active{transform:translateY(0)}
-.btn-ghost{background:#fffdf8;color:#7f6a56;border:1.5px solid #dbcdbf;box-shadow:none}
-.btn-ghost:hover{background:#f8f4ed;border-color:#0e8c6a;color:#0e8c6a;box-shadow:none;transform:none}
 .hint{text-align:center;font-size:12px;color:#7f6a56;margin-bottom:20px}
 .result-area{min-height:120px}
 .loading{text-align:center;padding:40px 0;color:#7f6a56}
@@ -215,91 +188,97 @@ body{font-family:"Space Grotesk","IBM Plex Sans","Avenir Next",-apple-system,Bli
 .field .v a:hover{text-decoration:underline}
 .src-tag{text-align:center;font-size:11px;color:#7f6a56;margin-top:16px}
 .src-tag code{background:rgba(14,140,106,.08);color:#0e8c6a;padding:1px 7px;border-radius:5px}
-.history-box{margin-top:10px}
-.history-box h3{font-size:13px;color:#2d2218;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
-.history-box h3 .clr{font-size:11px;color:#af3b2c;cursor:pointer;font-weight:400;opacity:.7}
-.history-box h3 .clr:hover{opacity:1}
-.h-chips{display:flex;gap:8px;flex-wrap:wrap}
-.chip{padding:7px 13px;background:#fffdf8;border:1px solid #dbcdbf;border-radius:10px;font-size:13px;color:#7f6a56;cursor:pointer;transition:all .2s;font-variant-numeric:tabular-nums}
-.chip:hover{border-color:#0e8c6a;color:#0e8c6a;background:#f8f4ed}
-.chip small{color:#0e8c6a;margin-left:5px}
-.link-row{text-align:center;margin-top:18px}
-.link-row a{font-size:13px;color:#7f6a56;text-decoration:none;padding:6px 14px;border:1px solid #dbcdbf;border-radius:9px;transition:.2s}
-.link-row a:hover{color:#0e8c6a;border-color:#0e8c6a}
 @media(max-width:480px){.card{padding:26px 18px}.flag{font-size:40px}.ip-val{font-size:24px}.search{flex-direction:column}.btn{width:100%}}
 </style></head><body>
 <div class="bg-gradient"></div><div class="bg-shape shape-a"></div><div class="bg-shape shape-b"></div><div class="bg-grid"></div>
 
 <div class="wrap">
+  <div class="lang-switch">
+    <button class="lang-btn" data-lang="en">EN</button>
+    <button class="lang-btn" data-lang="zh">中文</button>
+  </div>
   <div class="card">
     <div class="logo">
       <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93C7.05 19.44 4 16.08 4 12c0-.61.08-1.21.21-1.78L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41C17.93 5.78 20 8.65 20 12c0 2.08-.81 3.98-2.1 5.39z"/></svg></div>
-      <h1>IP 查询</h1>
-      <p>归属地 · 运营商 · 地理信息</p>
+      <h1 data-i18n="title">IP Lookup</h1>
+      <p data-i18n="tagline">Geolocation · ISP · Network Info</p>
     </div>
 
     <div class="search">
       <div class="search-input-wrap">
         <svg class="search-icon" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-        <input id="q" class="search-input" type="text" placeholder="输入 IP 地址（留空查自己）" autocomplete="off" autofocus>
+        <input id="q" class="search-input" type="text" data-i18n-ph="ph_input" placeholder="Enter an IP address (empty = yours)" autocomplete="off" autofocus>
       </div>
-      <button id="go" class="btn">查询</button>
+      <button id="go" class="btn" data-i18n="btn_query">Lookup</button>
     </div>
-    <div class="hint" id="hint">国内 IP 精确定位 · 数据来源 pconline / ipapi.co</div>
+    <div class="hint" id="hint" data-i18n="hint">Accurate for China IPs · Sources: pconline / ipapi.co</div>
   </div>
 
-  <div class="card result-area" id="result"><div class="loading"><div class="spinner"></div><br>加载中…</div></div>
+  <div class="card result-area" id="result"><div class="loading"><div class="spinner"></div><br><span data-i18n="loading">Loading…</span></div></div>
 </div>
 
 <script>
-var H=function(n){return document.getElementById(n)};
+var I18N={
+  en:{title:"IP Lookup",tagline:"Geolocation · ISP · Network Info",ph_input:"Enter an IP address (empty = yours)",btn_query:"Lookup",hint:"Accurate for China IPs · Sources: pconline / ipapi.co",loading:"Loading…",searching:"Looking up…",failed:"Lookup failed",neterr:"Network error, please retry",f_country:"Country / Region",f_region:"Region / State",f_city:"City",f_isp:"ISP",f_addr:"Location",f_org:"Org / ASN",f_tz:"Timezone",f_coord:"Coordinates",f_map:"Map",view_map:"View on OpenStreetMap →",source:"Source",badge_proxy:"Proxy / VPN",your_ip:"Your IP:",copied:"Copied",unknown:"Unknown"},
+  zh:{title:"IP 查询",tagline:"归属地 · 运营商 · 地理信息",ph_input:"输入 IP 地址（留空查自己）",btn_query:"查询",hint:"国内 IP 精确定位 · 数据来源 pconline / ipapi.co",loading:"加载中…",searching:"查询中…",failed:"查询失败",neterr:"网络错误，请重试",f_country:"国家 / 地区",f_region:"省 / 州",f_city:"城市",f_isp:"运营商",f_addr:"归属地",f_org:"组织 / ASN",f_tz:"时区",f_coord:"经纬度",f_map:"地图",view_map:"在 OpenStreetMap 查看 →",source:"数据来源",badge_proxy:"代理 / VPN",your_ip:"你的 IP：",copied:"已复制",unknown:"未知"}
+};
+var ISP_MAP={"移动":"China Mobile","联通":"China Unicom","电信":"China Telecom","铁通":"China Tietong","广电":"China Broadcast","长城":"Great Wall Broadband","教育网":"CERNET","鹏博士":"Dr. Peng"};
+var curLang=localStorage.getItem("ip-lang")||"en";
+function t(k){return (I18N[curLang]||I18N.en)[k]||k}
+function H(n){return document.getElementById(n)}
 function flag(cc){if(!cc||cc.length!==2)return "";var A=0x1F1E6-65;return String.fromCodePoint(A+cc.charCodeAt(0),A+cc.charCodeAt(1))}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function mapCountry(c){return (curLang==="en"&&c==="中国")?"China":(curLang==="zh"&&c==="China")?"中国":c}
+function mapIsp(s){if(!s)return s;if(curLang==="en")return ISP_MAP[s]||s;return s}
+function applyLang(lang){
+  curLang=lang;localStorage.setItem("ip-lang",lang);
+  document.documentElement.lang=lang==="zh"?"zh-CN":"en";
+  document.querySelectorAll("[data-i18n]").forEach(function(el){var v=I18N[lang][el.getAttribute("data-i18n")];if(v)el.textContent=v});
+  document.querySelectorAll("[data-i18n-ph]").forEach(function(el){var v=I18N[lang][el.getAttribute("data-i18n-ph")];if(v)el.placeholder=v});
+  document.querySelectorAll(".lang-btn").forEach(function(b){b.classList.toggle("active",b.getAttribute("data-lang")===lang)});
+}
+document.querySelectorAll(".lang-btn").forEach(function(b){b.addEventListener("click",function(){applyLang(b.getAttribute("data-lang"));if(lastResult)render(lastResult)})});
+var lastResult=null;
 function render(d){
-  if(d.status!=="success"){H("result").innerHTML='<div class="err">'+esc(d.message||"查询失败")+'</div>';return}
-  var loc=[d.country,d.region,d.city].filter(function(x){return x}).join(" · ");
+  lastResult=d;
+  if(d.status!=="success"){H("result").innerHTML='<div class="err">'+esc(d.message||t("failed"))+'</div>';return}
+  var country=mapCountry(d.country);
+  var loc=[country,mapCountry(d.region),mapCountry(d.city)].filter(function(x){return x}).join(curLang==="zh"?" · ":" · ");
+  var isp=mapIsp(d.isp);
+  var org=[mapIsp(d.org),d.as].filter(function(x){return x}).join(" · ");
+  var addr=curLang==="en"?mapIsp(d.addr):d.addr;
   var badges="";
-  if(d.proxy)badges+='<span class="badge proxy">代理 / VPN</span>';
+  if(d.proxy)badges+='<span class="badge proxy">'+t("badge_proxy")+'</span>';
   var fields=[
-    f("国家 / 地区",(d.country||"-")+(d.countryCode?" ("+d.countryCode+")":"")),
-    f("省 / 州",d.region||"-"),f("城市",d.city||"-"),
-    f("运营商",d.isp||"-"),f("归属地",d.addr||"-"),
-    f("组织 / ASN",[d.org,d.as].filter(function(x){return x}).join(" · ")||"-"),
-    f("时区",d.timezone||"-"),
-    f("经纬度",d.lat&&d.lon?(d.lat+", "+d.lon):"-")
+    f(t("f_country"),(country||t("unknown"))+(d.countryCode?" ("+d.countryCode+")":"")),
+    f(t("f_region"),mapCountry(d.region)||"-"),f(t("f_city"),mapCountry(d.city)||"-"),
+    f(t("f_isp"),isp||"-"),f(t("f_addr"),addr||"-"),
+    f(t("f_org"),org||"-"),f(t("f_tz"),d.timezone||"-"),
+    f(t("f_coord"),d.lat&&d.lon?(d.lat+", "+d.lon):"-")
   ].join("");
-  var map=(d.lat&&d.lon)?'<div class="field" style="grid-column:1/-1"><div class="k">地图</div><div class="v"><a target="_blank" href="https://www.openstreetmap.org/?mlat='+d.lat+'&mlon='+d.lon+'#map=10/'+d.lat+'/'+d.lon+'">在 OpenStreetMap 查看 →</a></div></div>':"";
-  H("result").innerHTML='<div class="ip-block">'+
-    '<div class="flag">'+(flag(d.countryCode)||"🌐")+'</div>'+
-    '<div class="ip-val" id="ipv">'+esc(d.query)+'<span class="copied">已复制</span></div>'+
-    '<div class="loc-line"><b>'+esc(loc||"未知")+'</b></div></div>'+
-    (badges?'<div class="badges">'+badges+'</div>':'')+
-    '<div class="divider"></div><div class="fields">'+fields+map+'</div>'+
-    '<div class="src-tag">数据来源 <code>'+esc(d.source||"?")+'</code></div>';
+  var map=(d.lat&&d.lon)?'<div class="field" style="grid-column:1/-1"><div class="k">'+t("f_map")+'</div><div class="v"><a target="_blank" href="https://www.openstreetmap.org/?mlat='+d.lat+'&mlon='+d.lon+'#map=10/'+d.lat+'/'+d.lon+'">'+t("view_map")+'</a></div></div>':"";
+  H("result").innerHTML='<div class="ip-block"><div class="flag">'+(flag(d.countryCode)||"🌐")+'</div><div class="ip-val" id="ipv">'+esc(d.query)+'<span class="copied">'+t("copied")+'</span></div><div class="loc-line"><b>'+esc(loc||t("unknown"))+'</b></div></div>'+(badges?'<div class="badges">'+badges+'</div>':'')+'<div class="divider"></div><div class="fields">'+fields+map+'</div><div class="src-tag">'+t("source")+' <code>'+esc(d.source||"?")+'</code></div>';
   var ie=H("ipv");if(ie)ie.addEventListener("click",function(){copy(d.query,ie)});
   function f(k,v){return '<div class="field"><div class="k">'+k+'</div><div class="v">'+esc(v)+'</div></div>'}
 }
-function copy(t,el){navigator.clipboard.writeText(t).then(function(){if(el){el.classList.add("copied");setTimeout(function(){el.classList.remove("copied")},1200)}})}
+function copy(txt,el){navigator.clipboard.writeText(txt).then(function(){if(el){el.classList.add("copied");setTimeout(function(){el.classList.remove("copied")},1200)}})}
 function doLookup(){
   var ip=H("q").value.trim();
-  H("result").innerHTML='<div class="loading"><div class="spinner"></div><br>查询中…</div>';
-  fetch("/api/lookup"+(ip?("?ip="+encodeURIComponent(ip)):"")).then(function(r){return r.json()}).then(function(d){
-    render(d);
-    if(d.status==="success"&&!ip)H("hint").textContent="你的 IP: "+d.query+" · 输入其他 IP 进行查询";
-  }).catch(function(){H("result").innerHTML='<div class="err">网络错误，请重试</div>'})
+  H("result").innerHTML='<div class="loading"><div class="spinner"></div><br>'+t("searching")+'</div>';
+  fetch("/api/lookup"+(ip?("?ip="+encodeURIComponent(ip)):"")).then(function(r){return r.json()}).then(function(d){render(d);if(d.status==="success"&&!ip)H("hint").textContent=t("your_ip")+" "+d.query}).catch(function(){H("result").innerHTML='<div class="err">'+t("neterr")+'</div>'})
 }
 H("go").addEventListener("click",doLookup);
 H("q").addEventListener("keydown",function(e){if(e.key==="Enter")doLookup()});
-doLookup();
+applyLang(curLang);doLookup();
 </script>
 </body></html>"""
 
 
 HISTORY_HTML = r"""<!doctype html>
-<html lang="zh-CN"><head>
+<html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#f4efe8">
-<title>查询历史</title>
+<title>Query History</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:16px;-webkit-font-smoothing:antialiased}
@@ -315,8 +294,12 @@ header{display:flex;justify-content:space-between;align-items:center;margin-bott
 header h1{font-size:22px;font-weight:700;color:#2d2218;display:flex;align-items:center;gap:10px}
 header h1 .icon{width:38px;height:38px;background:linear-gradient(140deg,#0e8c6a,#066a52);border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(14,140,106,.25)}
 header h1 .icon svg{width:20px;height:20px;fill:#fff}
-.actions{display:flex;gap:8px;align-items:center}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .stat{font-size:13px;color:#7f6a56;margin-right:6px}
+.lang-switch{display:flex;gap:4px}
+.lang-btn{padding:5px 11px;font-size:12px;font-weight:600;border:1px solid #dbcdbf;background:#fffdf8;color:#7f6a56;border-radius:8px;cursor:pointer;transition:all .2s;font-family:inherit}
+.lang-btn:hover{border-color:#0e8c6a;color:#0e8c6a}
+.lang-btn.active{background:#0e8c6a;color:#fff;border-color:#0e8c6a}
 .btn{padding:8px 16px;font-size:13px;font-weight:600;font-family:inherit;border-radius:10px;cursor:pointer;transition:.2s;text-decoration:none;border:1.5px solid #dbcdbf;background:#fffdf8;color:#7f6a56}
 .btn:hover{border-color:#0e8c6a;color:#0e8c6a;background:#f8f4ed}
 .btn-primary{background:linear-gradient(140deg,#0e8c6a,#066a52);color:#fff;border:none;box-shadow:0 4px 10px rgba(14,140,106,.25)}
@@ -333,7 +316,6 @@ tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(14,140,106,.04)}
 .mono{font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
 .loc{color:#0e8c6a;font-weight:500}
-.badge{display:inline-block;padding:2px 9px;border-radius:11px;font-size:10px;font-weight:600;background:rgba(14,140,106,.1);color:#0e8c6a}
 .empty{text-align:center;color:#7f6a56;padding:60px 20px}
 .flag{font-size:15px;margin-right:3px}
 .loading{text-align:center;padding:50px;color:#7f6a56}
@@ -346,47 +328,64 @@ footer{text-align:center;color:#7f6a56;font-size:11px;margin-top:24px}
 
 <div class="wrap">
   <header>
-    <h1><span class="icon"><svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg></span>查询历史</h1>
+    <h1><span class="icon"><svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg></span><span data-i18n="title">Query History</span></h1>
     <div class="actions">
+      <div class="lang-switch">
+        <button class="lang-btn" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="zh">中文</button>
+      </div>
       <span class="stat" id="stat">--</span>
-      <a class="btn" href="/">返回查询</a>
-      <button class="btn btn-primary" id="refresh">刷新</button>
+      <a class="btn" href="/" data-i18n="back">Back</a>
+      <button class="btn btn-primary" id="refresh" data-i18n="refresh">Refresh</button>
     </div>
   </header>
 
   <div class="summary" id="summary"></div>
-  <div id="twrap"><div class="loading"><div class="spinner"></div><br>加载中…</div></div>
-  <footer>查询记录持久化存储于服务端 JSONL 文件</footer>
+  <div id="twrap"><div class="loading"><div class="spinner"></div><br><span data-i18n="loading">Loading…</span></div></div>
+  <footer data-i18n="footer">Query log persisted server-side as JSONL</footer>
 </div>
 <script>
+var I18N={
+  en:{title:"Query History",loading:"Loading…",empty:"No queries yet",failed:"Failed to load",stat_total:"Total Queries",stat_visitors:"Unique Visitors",stat_proxy:"Proxy / VPN",stat_top:"Top Region",th_time:"Time",th_visitor:"Visitor IP",th_target:"Query IP",th_region:"Region",th_isp:"ISP / AS",th_source:"Source",back:"Back",refresh:"Refresh",n_records:function(n){return n+" records"},footer:"Query log persisted server-side as JSONL",china:"China"},
+  zh:{title:"查询历史",loading:"加载中…",empty:"暂无查询记录",failed:"加载失败",stat_total:"总查询",stat_visitors:"独立访客",stat_proxy:"代理/VPN",stat_top:"Top 地区",th_time:"时间",th_visitor:"访客 IP",th_target:"查询 IP",th_region:"地区",th_isp:"运营商 / AS",th_source:"来源",back:"返回查询",refresh:"刷新",n_records:function(n){return "共 "+n+" 条"},footer:"查询记录持久化存储于服务端 JSONL 文件",china:"中国"}
+};
+var ISP_MAP={"移动":"China Mobile","联通":"China Unicom","电信":"China Telecom","铁通":"China Tietong","广电":"China Broadcast","长城":"Great Wall Broadband","教育网":"CERNET","鹏博士":"Dr. Peng"};
+var curLang=localStorage.getItem("ip-lang")||"en";
+function t(k){var v=(I18N[curLang]||I18N.en)[k];return typeof v==="function"?v:v||k}
+function tf(k){var v=(I18N[curLang]||I18N.en)[k];return typeof v==="function"?v:function(){return k}}
 function H(n){return document.getElementById(n)}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function flag(cc){if(!cc||cc.length!==2)return "";var A=0x1F1E6-65;return String.fromCodePoint(A+cc.charCodeAt(0),A+cc.charCodeAt(1))}
+function mapCountry(c){if(!c)return c;if(curLang==="en")return c==="中国"?"China":c;return c==="China"?"中国":c}
+function mapIsp(s){if(!s)return s;if(curLang==="en")return ISP_MAP[s]||s;return s}
+function applyLang(lang){
+  curLang=lang;localStorage.setItem("ip-lang",lang);
+  document.documentElement.lang=lang==="zh"?"zh-CN":"en";
+  document.querySelectorAll("[data-i18n]").forEach(function(el){var k=el.getAttribute("data-i18n");var v=(I18N[lang]||I18N.en)[k];if(typeof v==="string")el.textContent=v});
+  document.querySelectorAll(".lang-btn").forEach(function(b){b.classList.toggle("active",b.getAttribute("data-lang")===lang)});
+}
+document.querySelectorAll(".lang-btn").forEach(function(b){b.addEventListener("click",function(){applyLang(b.getAttribute("data-lang"));load()})});
 function load(){
-  H("twrap").innerHTML='<div class="loading"><div class="spinner"></div><br>加载中…</div>';
+  H("twrap").innerHTML='<div class="loading"><div class="spinner"></div><br>'+t("loading")+'</div>';
   fetch("/api/history?limit=300").then(function(r){return r.json()}).then(function(d){
     var recs=(d.records||[]).reverse();
-    H("stat").textContent="共 "+recs.length+" 条";
-    if(!recs.length){H("twrap").innerHTML='<div class="table-card"><div class="empty">暂无查询记录</div></div>';H("summary").innerHTML="";return}
+    H("stat").textContent=tf("n_records")(recs.length);
+    if(!recs.length){H("twrap").innerHTML='<div class="table-card"><div class="empty">'+t("empty")+'</div></div>';H("summary").innerHTML="";return}
     var countries={},visitors={},proxy=0;
-    recs.forEach(function(r){if(r.country)countries[r.country]=(countries[r.country]||0)+1;if(r.visitor)visitors[r.visitor]=1;if(r.proxy)proxy++});
+    recs.forEach(function(r){var c=mapCountry(r.country);if(c)countries[c]=(countries[c]||0)+1;if(r.visitor)visitors[r.visitor]=1;if(r.proxy)proxy++});
     var topC=Object.keys(countries).sort(function(a,b){return countries[b]-countries[a]})[0];
     function sc(l,v){return '<div class="sc"><div class="n">'+esc(v)+'</div><div class="l">'+l+'</div></div>'}
-    H("summary").innerHTML=[sc("总查询",recs.length),sc("独立访客",Object.keys(visitors).length),sc("代理/VPN",proxy),sc("Top 地区",topC||"-")].join("");
+    H("summary").innerHTML=[sc(t("stat_total"),recs.length),sc(t("stat_visitors"),Object.keys(visitors).length),sc(t("stat_proxy"),proxy),sc(t("stat_top"),topC||"-")].join("");
     var rows=recs.map(function(r){
-      var loc=[r.country,r.region,r.city].filter(function(x){return x}).join(" / ");
-      return "<tr>"+
-        "<td class='mono'>"+esc(r.ts||"-")+"</td>"+
-        "<td class='mono hide-sm'>"+esc(r.visitor||"-")+"</td>"+
-        "<td class='mono'>"+esc(r.target||"-")+"</td>"+
-        "<td class='loc'>"+(r.countryCode?flag(r.countryCode)+" ":"")+esc(loc||"-")+"</td>"+
-        "<td class='hide-sm'>"+esc(r.addr||r.isp||"-")+(r.as?"<br><small style='color:#7f6a56'>"+esc(r.as)+"</small>":"")+"</td>"+
-        "<td>"+esc(r.source||"-")+"</td></tr>";
+      var loc=[mapCountry(r.country),mapCountry(r.region),mapCountry(r.city)].filter(function(x){return x}).join(" / ");
+      var isp=curLang==="en"?mapIsp(r.addr||r.isp):(r.addr||r.isp);
+      return "<tr><td class='mono'>"+esc(r.ts||"-")+"</td><td class='mono hide-sm'>"+esc(r.visitor||"-")+"</td><td class='mono'>"+esc(r.target||"-")+"</td><td class='loc'>"+(r.countryCode?flag(r.countryCode)+" ":"")+esc(loc||"-")+"</td><td class='hide-sm'>"+esc(isp||"-")+(r.as?"<br><small style='color:#7f6a56'>"+esc(r.as)+"</small>":"")+"</td><td>"+esc(r.source||"-")+"</td></tr>";
     }).join("");
-    H("twrap").innerHTML='<div class="table-card"><table><thead><tr><th>时间</th><th class="hide-sm">访客 IP</th><th>查询 IP</th><th>地区</th><th class="hide-sm">运营商 / AS</th><th>来源</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
-  }).catch(function(e){H("twrap").innerHTML='<div class="table-card"><div class="empty">加载失败</div></div>'})
+    H("twrap").innerHTML='<div class="table-card"><table><thead><tr><th>'+t("th_time")+'</th><th class="hide-sm">'+t("th_visitor")+'</th><th>'+t("th_target")+'</th><th>'+t("th_region")+'</th><th class="hide-sm">'+t("th_isp")+'</th><th>'+t("th_source")+'</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }).catch(function(){H("twrap").innerHTML='<div class="table-card"><div class="empty">'+t("failed")+'</div></div>'})
 }
-H("refresh").addEventListener("click",load);load();
+H("refresh").addEventListener("click",load);
+applyLang(curLang);load();
 </script>
 </body></html>"""
 
@@ -395,8 +394,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path in ("/", "/index.html"):
-            data = INDEX_HTML.encode("utf-8")
-            self._send(200, "text/html; charset=utf-8", data)
+            self._send(200, "text/html; charset=utf-8", INDEX_HTML.encode())
         elif parsed.path == "/api/lookup":
             qs = urllib.parse.parse_qs(parsed.query)
             ip = (qs.get("ip", [""])[0]).strip()
