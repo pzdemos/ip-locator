@@ -228,10 +228,11 @@ body{font-family:"Space Grotesk","IBM Plex Sans","Avenir Next",-apple-system,Bli
 .err{text-align:center;color:#af3b2c;padding:30px 0}
 .ip-block{text-align:center;margin-bottom:22px}
 .flag{font-size:48px;line-height:1;margin-bottom:8px;filter:drop-shadow(0 4px 8px rgba(40,24,9,.15))}
-.ip-val{font-size:28px;font-weight:700;color:#2d2218;letter-spacing:-.5px;font-variant-numeric:tabular-nums;cursor:pointer;display:inline-block;position:relative;transition:color .2s}
+.ip-wrap{position:relative;display:inline-block}
+.ip-val{font-size:28px;font-weight:700;color:#2d2218;letter-spacing:-.5px;font-variant-numeric:tabular-nums;cursor:pointer;display:inline-block;transition:color .2s}
 .ip-val:hover{color:#0e8c6a}
-.ip-val .copied{position:absolute;left:50%;top:-22px;transform:translateX(-50%);font-size:11px;color:#066a52;background:#fffdf8;padding:2px 10px;border-radius:6px;border:1px solid #dbcdbf;opacity:0;transition:opacity .2s;white-space:nowrap}
-.ip-val.copied .copied{opacity:1}
+.ip-wrap .copied{position:absolute;left:50%;top:-22px;transform:translateX(-50%);font-size:11px;color:#066a52;background:#fffdf8;padding:2px 10px;border-radius:6px;border:1px solid #dbcdbf;opacity:0;transition:opacity .2s;white-space:nowrap;user-select:none;pointer-events:none}
+.ip-wrap.copied .copied{opacity:1}
 .loc-line{font-size:15px;color:#7f6a56;margin-top:6px}
 .loc-line b{color:#2d2218;font-weight:600}
 .badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:20px}
@@ -320,8 +321,8 @@ function render(d){
     f(t("f_coord"),d.lat&&d.lon?(d.lat+", "+d.lon):"-")
   ].join("");
   var map=(d.lat&&d.lon)?'<div class="field" style="grid-column:1/-1"><div class="k">'+t("f_map")+'</div><div class="v"><a target="_blank" href="https://www.openstreetmap.org/?mlat='+d.lat+'&mlon='+d.lon+'#map=10/'+d.lat+'/'+d.lon+'">'+t("view_map")+'</a></div></div>':"";
-  H("result").innerHTML='<div class="ip-block"><div class="flag">'+(flag(d.countryCode)||"🌐")+'</div><div class="ip-val" id="ipv">'+esc(d.query)+'<span class="copied">'+t("copied")+'</span></div><div class="loc-line"><b>'+esc(loc||t("unknown"))+'</b></div></div>'+(badges?'<div class="badges">'+badges+'</div>':'')+'<div class="divider"></div><div class="fields">'+fields+map+'</div><div class="src-tag">'+t("source")+' <code>'+esc(d.source||"?")+'</code></div>';
-  var ie=H("ipv");if(ie)ie.addEventListener("click",function(){copy(d.query,ie)});
+  H("result").innerHTML='<div class="ip-block"><div class="flag">'+(flag(d.countryCode)||"🌐")+'</div><div class="ip-wrap"><div class="ip-val" id="ipv">'+esc(d.query)+'</div><span class="copied">'+t("copied")+'</span></div><div class="loc-line"><b>'+esc(loc||t("unknown"))+'</b></div></div>'+(badges?'<div class="badges">'+badges+'</div>':'')+'<div class="divider"></div><div class="fields">'+fields+map+'</div><div class="src-tag">'+t("source")+' <code>'+esc(d.source||"?")+'</code></div>';
+  var ie=H("ipv");if(ie)ie.addEventListener("click",function(){copy(d.query,ie.parentElement)});
   function f(k,v){return '<div class="field"><div class="k">'+k+'</div><div class="v">'+esc(v)+'</div></div>'}
 }
 function copy(txt,el){navigator.clipboard.writeText(txt).then(function(){if(el){el.classList.add("copied");setTimeout(function(){el.classList.remove("copied")},1200)}})}
